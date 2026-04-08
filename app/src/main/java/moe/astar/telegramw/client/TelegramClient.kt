@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 class TelegramClient @Inject constructor(private val parameters: TdApi.SetTdlibParameters) {
 
-    private val _updateFlow = MutableSharedFlow<TdApi.Update>()
+    private val _updateFlow = MutableSharedFlow<TdApi.Update>(extraBufferCapacity = 100)
     val updateFlow: SharedFlow<TdApi.Update> get() = _updateFlow
 
     private val _me = MutableStateFlow<Long?>(null)
@@ -103,7 +103,7 @@ class TelegramClient @Inject constructor(private val parameters: TdApi.SetTdlibP
             TdApi.SetOption("disable_auto_download", TdApi.OptionValueBoolean(true)),
             resultHandler
         )
-        client.send(TdApi.SetLogVerbosityLevel(0), resultHandler)
+        client.send(TdApi.SetLogVerbosityLevel(1), resultHandler)
     }
 
     private val requestScope = CoroutineScope(Dispatchers.IO)
@@ -118,6 +118,7 @@ class TelegramClient @Inject constructor(private val parameters: TdApi.SetTdlibP
             requestScope.launch {
                 client.send(request) {
                     trySend(it)
+                    close()
                 }
             }
             awaitClose {}

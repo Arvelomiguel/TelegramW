@@ -16,8 +16,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,10 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -772,55 +768,10 @@ fun FormattedText(
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
 
-    ClickableText(
-        text = formattedString, onClick = {
-            formattedString.getStringAnnotations("url", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    uriHandler.openUri(stringAnnotation.item)
-                }
-
-            formattedString.getStringAnnotations("email", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:")
-                        putExtra(Intent.EXTRA_EMAIL, stringAnnotation.item)
-                    }
-                    emailIntent.resolveActivity(context.packageManager)?.also {
-                        startActivity(context, emailIntent, null)
-                    }
-                }
-
-            formattedString.getStringAnnotations("phone", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    val phoneIntent = Intent(
-                        Intent.ACTION_DIAL, Uri.fromParts("tel", stringAnnotation.item, null)
-                    )
-                    phoneIntent.resolveActivity(context.packageManager)?.also {
-                        startActivity(context, phoneIntent, null)
-                    }
-                }
-
-            formattedString.getStringAnnotations("mention", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    navController.navigate(
-                        Screen.Info.buildRoute(
-                            "search",
-                            0,
-                            stringAnnotation.item
-                        )
-                    )
-                }
-
-            formattedString.getStringAnnotations("mentionName", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    navController.navigate(
-                        Screen.Info.buildRoute(
-                            "user",
-                            stringAnnotation.item.toLong()
-                        )
-                    )
-                }
-        }, style = style, modifier = modifier
+    Text(
+        text = formattedString,
+        style = style,
+        modifier = modifier
     )
 }
 
@@ -859,7 +810,7 @@ const val MAX_PREVIEW_DESCRIPTION = 100
 
 @Composable
 fun WebpagePreview(navController: NavController, webPage: TdApi.WebPage, viewModel: ChatViewModel) {
-    Divider(
+    HorizontalDivider(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 7.dp, bottom = 7.dp)
@@ -1969,34 +1920,28 @@ fun PinMessage(
             viewModel.getUser(senderIdValue)?.let { sender ->
                 buildAnnotatedString {
                     append("${sender.firstName + " " + sender.lastName} pinned ")
-                    pushStringAnnotation(tag = "msg", annotation = String())
-                    append("message")
-                    pop()
+                    withLink(LinkAnnotation.Clickable("msg", linkInteractionListener = { scrollReply(content.messageId) })) {
+                        append("message")
+                    }
                 }
             } ?: buildAnnotatedString {
                 append("Channel pinned ")
-                pushStringAnnotation(tag = "msg", annotation = String())
-                append("message")
-                pop()
+                withLink(LinkAnnotation.Clickable("msg", linkInteractionListener = { scrollReply(content.messageId) })) {
+                    append("message")
+                }
             }
         } ?: buildAnnotatedString {
             append("Channel pinned ")
-            pushStringAnnotation(tag = "msg", annotation = String())
-            append("message")
-            pop()
+            withLink(LinkAnnotation.Clickable("msg", linkInteractionListener = { scrollReply(content.messageId) })) {
+                append("message")
+            }
         })
-        ClickableText(text = msg,
+        Text(text = msg,
             style = MaterialTheme.typography.caption1.copy(color = MaterialTheme.colors.onSurface)
                 .copy(textAlign = TextAlign.Center),
             modifier = Modifier
                 .padding(bottom = 4.dp)
-                .align(Alignment.Center),
-            onClick = { offset ->
-                msg.getStringAnnotations(tag = "msg", start = offset, end = offset).firstOrNull()
-                    ?.let {
-                        scrollReply(content.messageId)
-                    }
-            })
+                .align(Alignment.Center))
     }
 }
 

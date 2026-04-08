@@ -1,7 +1,9 @@
 package moe.astar.telegramw.client
 
 import kotlinx.collections.immutable.PersistentMap
+import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashMapOf
+import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -27,8 +29,8 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
     private val _chatData = MutableStateFlow(persistentHashMapOf<Long, TdApi.Chat>())
     val chatData: StateFlow<PersistentMap<Long, TdApi.Chat>> get() = _chatData
 
-    private val _threads = MutableStateFlow(hashSetOf<Long>())
-    val threads: StateFlow<HashSet<Long>> get() = _threads
+    private val _threads = MutableStateFlow<PersistentSet<Long>>(persistentHashSetOf())
+    val threads: StateFlow<PersistentSet<Long>> get() = _threads
 
     private val _threadData = MutableStateFlow(persistentHashMapOf<Long, TdApi.ForumTopics>())
     val threadData: StateFlow<PersistentMap<Long, TdApi.ForumTopics>> get() = _threadData
@@ -36,11 +38,19 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
-    private fun updateProperty(chatId: Long, update: (TdApi.Chat) -> TdApi.Chat) {
-        _chatData.value[chatId]?.also {
-            _chatData.value = _chatData.value.remove(chatId)
-            _chatData.value = _chatData.value.put(chatId, update(it))
+    private fun updateProperty(chatId: Long, update: (TdApi.Chat) -> Unit) {
+        _chatData.update { data ->
+            data[chatId]?.let { chat ->
+                update(chat)
+                data.put(chatId, chat) // Re-putting the same instance into persistent map still returns a new map if it was updated or we can just force update.
+            } ?: data
         }
+    }
+
+    private fun isForum(chat: TdApi.Chat): Boolean {
+        return (chat.type as? TdApi.ChatTypeSupergroup)?.let {
+            client.getSupergroup(it.supergroupId)?.isForum
+        } ?: false
     }
 
     init {
@@ -65,8 +75,9 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
                     updateChats()
                 }
                 is TdApi.UpdateNewChat -> {
-                    _chatData.value = _chatData.value.put(it.chat.id, it.chat)
-                    updateChatPositions(it.chat.id, it.chat.positions)
+                    val newChat = it.chat
+                    _chatData.update { data -> data.put(newChat.id, newChat) }
+                    updateChatPositions(newChat.id, newChat.positions)
                 }
                 is TdApi.UpdateChatReadInbox -> {
                     updateProperty(it.chatId) { chat ->
@@ -149,43 +160,24 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
                     }
                     updateChats()
                 }
-                /*is TdApi.UpdateForumTopicInfo -> {
-                    if (!(_topicIds.value.contains(it.chatId))) {
-                        _topicIds.value.add(it.chatId)
-                        _topicData.value = _topicData.value.put(it.chatId, it.info)
-                    } else {
-                        _topicData.value = _topicData.value.remove(it.chatId)
-                        _topicData.value = _topicData.value.put(it.chatId, it.info)
-                    }
-                }*/
-                //is TdApi.UpdateChatFilters -> {}
-                //is TdApi.UpdateChatHasProtectedContent -> {}
-                //is TdApi.UpdateChatMember -> {}
-                //is TdApi.UpdateChatMessageSender -> {}
-                //is TdApi.UpdateChatMessageTtl -> {}
-                //is TdApi.UpdateChatOnlineMemberCount -> {}
-                //is TdApi.UpdateChatPendingJoinRequests -> {}
-                //is TdApi.UpdateChatTheme -> {}
-                //is TdApi.UpdateChatThemes -> {}
-                //is TdApi.UpdateChatVideoChat -> {}
-                // TODO: Make sure message content updates of last messages are updated here, too
-
             }
         }.launchIn(scope)
     }
 
-    private fun syncThread(chatId: Long) {
+    private fun syncThread(chat: TdApi.Chat) {
+        if (!isForum(chat)) return
+        val chatId = chat.id
         scope.launch {
             val topicsFlow: Flow<TdApi.ForumTopics> =
                 client.sendRequest(TdApi.GetForumTopics(chatId, "", 0, 0, 0, Int.MAX_VALUE))
                     .filterIsInstance()
             topicsFlow.collect { topics ->
                 if (topics.topics == null) {
-                    _threads.value.remove(chatId)
-                    _threadData.value.remove(chatId)
+                    _threads.update { it.remove(chatId) }
+                    _threadData.update { it.remove(chatId) }
                 } else {
-                    _threads.value.add(chatId)
-                    _threadData.value = _threadData.value.put(chatId, topics)
+                    _threads.update { it.add(chatId) }
+                    _threadData.update { it.put(chatId, topics) }
                 }
             }
         }
@@ -200,17 +192,19 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
 
     private fun updateChats() {
         chatOrderingLock.withLock {
-            _chatIds.value = chatOrdering.toList().map {
-                if (!_threadData.value.contains(it.first)) {
-                    syncThread(it.first)
+            val chatIds = chatOrdering.toList().map { it.first }
+            _chatIds.value = chatIds
+            chatIds.forEach { id ->
+                _chatData.value[id]?.let { chat ->
+                    if (isForum(chat) && !_threadData.value.contains(id)) {
+                        syncThread(chat)
+                    }
                 }
-                it.first
             }
         }
     }
 
     private fun updateChatPositions(chatId: Long, positions: Array<TdApi.ChatPosition>) {
-        syncThread(chatId)
         chatOrderingLock.withLock {
             chatOrdering.removeIf { it.first == chatId }
             positions.dropWhile { it.list !is TdApi.ChatListMain }
@@ -218,6 +212,13 @@ class ChatProvider @Inject constructor(private val client: TelegramClient) {
                     chatOrdering.add(Pair(chatId, order))
                 }
         }
+        
+        _chatData.value[chatId]?.let { chat ->
+            if (isForum(chat)) {
+                syncThread(chat)
+            }
+        }
+        
         updateChats()
     }
 

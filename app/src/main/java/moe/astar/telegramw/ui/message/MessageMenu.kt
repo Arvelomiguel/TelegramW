@@ -9,12 +9,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
@@ -318,7 +320,7 @@ fun DeleteItem(onClick: () -> Unit) {
 fun ReplyItem(onClick: () -> Unit) {
     MenuItem(
         title = "Text",
-        imageVector = Icons.Outlined.Reply,
+        imageVector = Icons.AutoMirrored.Outlined.Reply,
         onClick = onClick
     )
 }
@@ -336,7 +338,7 @@ fun ReplyStickerItem(onClick: () -> Unit) {
 fun ForwardItem(onClick: () -> Unit) {
     MenuItem(
         title = "Forward",
-        imageVector = Icons.Outlined.Forward,
+        imageVector = Icons.AutoMirrored.Outlined.Forward,
         onClick = onClick
     )
 }

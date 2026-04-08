@@ -1,9 +1,11 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
-    id 'dagger.hilt.android.plugin'
-    id "com.google.protobuf" version '0.9.4'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'com.google.dagger.hilt.android'
+    id 'com.google.devtools.ksp'
+    id "com.google.protobuf"
 }
 import org.apache.tools.ant.taskdefs.condition.Os
 
@@ -12,17 +14,21 @@ def checkMac() {
 }
 
 def getGitHash = { ->
-    def stdout = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'rev-parse', '--short', 'HEAD'
-        standardOutput = stdout
+    try {
+        def stdout = new ByteArrayOutputStream()
+        project.exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (ignored) {
+        return "unknown"
     }
-    return stdout.toString().trim()
 }
 
 android {
     namespace 'moe.astar.telegramw'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         buildConfigField "String", "GITHASH", "\"${getGitHash()}\""
@@ -33,7 +39,7 @@ android {
         buildConfigField "String", "TELEGRAM_API_HASH", "\"${properties.getProperty('TELEGRAM_API_HASH')}\""
         applicationId "moe.astar.telegramw"
         minSdk 28
-        targetSdk 33
+        targetSdk 36
         versionCode 1
         versionName "0.0.1"
         vectorDrawables {
@@ -55,19 +61,20 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
     buildFeatures {
         compose true
+        buildConfig true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.14'
+        // Kotlin 2.0+ uses the Compose Compiler plugin defined in the plugins block
     }
-    packagingOptions {
+    packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
@@ -76,32 +83,31 @@ android {
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.core:core-ktx:1.15.0'
 
-    implementation 'androidx.compose.material3:material3:1.2.1'
-    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.compose.material3:material3:1.4.0'
+    implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.percentlayout:percentlayout:1.0.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.recyclerview:recyclerview:1.3.2'
-    //noinspection GradleDependency
-    implementation "androidx.compose.ui:ui:$compose_version"
-    //noinspection GradleDependency
+    implementation 'androidx.recyclerview:recyclerview:1.4.0'
+    
+    implementation platform('androidx.compose:compose-bom:2026.02.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material:material-icons-extended'
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    implementation 'androidx.compose.runtime:runtime-livedata'
+
     implementation "androidx.wear.compose:compose-material:$wear_compose_version"
-    //noinspection GradleDependency
     implementation "androidx.wear.compose:compose-foundation:$wear_compose_version"
-    implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.3'
-    implementation 'androidx.activity:activity-compose:1.9.0'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.wear:wear-input:1.2.0-alpha02'
-    implementation 'androidx.compose.material:material-icons-extended:1.6.8'
-    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
-    //noinspection GradleDependency
-    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
-    //noinspection GradleDependency
-    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
-    implementation "androidx.wear.compose:compose-navigation:1.3.1"
-    implementation 'androidx.compose.runtime:runtime-livedata:1.6.8'
+    implementation "androidx.wear.compose:compose-navigation:$wear_compose_version"
+    
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.0'
+    implementation 'androidx.activity:activity-compose:1.13.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.wear:wear-input:1.2.0'
 
     implementation 'com.google.zxing:core:3.5.0' // QR code generation
     implementation 'org.osmdroid:osmdroid-android:6.1.13' // OSM Maps
@@ -111,7 +117,7 @@ dependencies {
 
     //noinspection GradleDependency
     implementation "com.google.dagger:hilt-android:$hilt_version"
-    kapt "com.google.dagger:hilt-compiler:$hilt_version"
+    ksp "com.google.dagger:hilt-compiler:$hilt_version"
     implementation 'androidx.hilt:hilt-navigation-compose:1.2.0'
 
     implementation "androidx.navigation:navigation-compose:2.7.7"

@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.wear.compose.material.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.Text
 import moe.astar.telegramw.R
 import moe.astar.telegramw.Screen
@@ -18,7 +18,12 @@ import moe.astar.telegramw.ui.util.YesNoDialog
 import org.drinkless.tdlib.TdApi
 
 @Composable
-fun ChatMenuScreen(chatId: Long, viewModel: ChatMenuViewModel, navController: NavController) {
+fun ChatMenuScreen(
+    chatId: Long,
+    threadId: Long,
+    viewModel: ChatMenuViewModel,
+    navController: NavController
+) {
 
     val chat = viewModel.getChat(chatId)
     val showLeaveDialog = remember { mutableStateOf(false) }
@@ -86,7 +91,14 @@ fun ChatMenuScreen(chatId: Long, viewModel: ChatMenuViewModel, navController: Na
                 MenuItem(
                     title = "Audio message",
                     iconPainter = painterResource(id = R.drawable.baseline_mic_24),
-                    onClick = {}
+                    onClick = {
+                        navController.navigate(
+                            Screen.VoiceRecord.buildRoute(
+                                chatId,
+                                threadId
+                            )
+                        )
+                    }
                 )
             }
             item {

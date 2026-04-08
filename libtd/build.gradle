@@ -4,11 +4,13 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
-apply plugin: 'com.android.library'
+plugins {
+    id 'com.android.library'
+}
 
 android {
     namespace 'org.drinkless.tdlib'
-    compileSdkVersion 34
+    compileSdkVersion 36
 
     sourceSets.main {
         jniLibs.srcDir 'src/main/libs'
@@ -17,7 +19,6 @@ android {
 
     defaultConfig {
         minSdkVersion 10
-        targetSdkVersion 33
     }
     buildTypes {
         release {
@@ -27,6 +28,10 @@ android {
     }
     lint {
         disable 'InvalidPackage'
+        targetSdk 36
+    }
+    testOptions {
+        targetSdk 36
     }
 }
 

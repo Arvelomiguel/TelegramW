@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.*
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
@@ -29,6 +30,7 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import moe.astar.telegramw.R
+import moe.astar.telegramw.Screen
 import moe.astar.telegramw.ui.chat.STICKERS_PER_ROW
 import moe.astar.telegramw.ui.chat.gzipFileToString
 import org.drinkless.tdlib.TdApi
@@ -181,7 +183,7 @@ fun StickersView(
                                                                     messageId,
                                                                     sticker
                                                                 )
-                                                                navController.popBackStack()
+                                                                navController.popBackStack(Screen.ChatMenu.route, inclusive = true)
                                                             },
                                                         painter = painter,
                                                         contentDescription = sticker.emoji

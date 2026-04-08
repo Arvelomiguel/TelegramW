@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
@@ -12,15 +13,18 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.wear.compose.material.ScalingLazyListItemInfo
+import androidx.wear.compose.foundation.lazy.ScalingLazyListItemInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import moe.astar.telegramw.client.ChatProvider
 import moe.astar.telegramw.client.MessageProvider
 import moe.astar.telegramw.client.TelegramClient
+import moe.astar.telegramw.client.VoiceRecorder
 import org.drinkless.tdlib.TdApi
 import java.lang.Float.max
 import java.lang.Float.min
@@ -35,6 +39,7 @@ class ChatViewModel @Inject constructor(
     val client: TelegramClient,
     val chatProvider: ChatProvider,
     val messageProvider: MessageProvider,
+    val voiceRecorder: VoiceRecorder,
     @ApplicationContext context: Context
 ) : ViewModel() {
     val readState = mutableSetOf<Long>()
@@ -74,11 +79,52 @@ class ChatViewModel @Inject constructor(
         messageProvider.pullMessages()
     }
 
+    fun stopAndSendVoiceNote(chatId: Long, threadId: Long?, recordingTime: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val path = voiceRecorder.stopRecording()
+            if (path != null) {
+                val duration = (recordingTime / 1000).toInt().coerceAtLeast(1)
+                sendMessageAsync(
+                    chatId = chatId,
+                    threadId = threadId,
+                    content = TdApi.InputMessageVoiceNote(
+                        TdApi.InputFileLocal(path),
+                        duration,
+                        null,
+                        null
+                    )
+                )
+            }
+        }
+    }
+
     fun sendMessageAsync(
-        threadId: Long,
+        chatId: Long,
+        threadId: Long?,
         content: TdApi.InputMessageContent
     ): Deferred<TdApi.Message> {
-        return messageProvider.sendMessageAsync(threadId, 0, TdApi.MessageSendOptions(), content)
+        val result = CompletableDeferred<TdApi.Message>()
+        viewModelScope.launch {
+            client.sendRequest(
+                TdApi.SendMessage(
+                    chatId,
+                    threadId ?: 0L,
+                    0,
+                    TdApi.MessageSendOptions(),
+                    null,
+                    content
+                )
+            ).collect {
+                when (it) {
+                    is TdApi.Message -> result.complete(it)
+                    is TdApi.Error -> {
+                        Log.e(TAG, "Error sending message: ${it.code} - ${it.message}")
+                        result.completeExceptionally(Exception(it.message))
+                    }
+                }
+            }
+        }
+        return result
     }
 
     fun getUser(id: Long?): TdApi.User? = id?.let { client.getUser(it) }

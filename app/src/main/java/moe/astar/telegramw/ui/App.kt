@@ -12,6 +12,7 @@ import moe.astar.telegramw.UserPreferences
 import moe.astar.telegramw.theme.WeargramTheme
 import moe.astar.telegramw.ui.about.AboutScreen
 import moe.astar.telegramw.ui.chat.ChatScreen
+import moe.astar.telegramw.ui.chat.VoiceRecordScreen
 import moe.astar.telegramw.ui.home.ChatSelectScreen
 import moe.astar.telegramw.ui.home.HomeScreen
 import moe.astar.telegramw.ui.info.InfoScreen
@@ -87,9 +88,11 @@ private fun MainNavHost(navController: NavHostController) {
 
         composable(Screen.ChatMenu.route) {
             Screen.ChatMenu.getChatId(it)?.also { chatId ->
+                val threadId = Screen.ChatMenu.getThreadId(it) ?: 0L
                 ChatMenuScreen(
                     navController = navController,
                     chatId = chatId,
+                    threadId = threadId,
                     viewModel = hiltViewModel(it)
                 )
             }
@@ -216,6 +219,20 @@ private fun MainNavHost(navController: NavHostController) {
                         chatId = chatId,
                     )
                 }
+            }
+        }
+
+        composable(Screen.VoiceRecord.route) {
+            Screen.VoiceRecord.getChatId(it)?.also { chatId ->
+                val threadId = Screen.VoiceRecord.getThreadId(it) ?: 0L
+                val viewModel: moe.astar.telegramw.ui.chat.ChatViewModel = hiltViewModel(it)
+                VoiceRecordScreen(
+                    chatId = chatId,
+                    threadId = threadId,
+                    viewModel = viewModel,
+                    navController = navController,
+                    voiceRecorder = viewModel.voiceRecorder
+                )
             }
         }
     }

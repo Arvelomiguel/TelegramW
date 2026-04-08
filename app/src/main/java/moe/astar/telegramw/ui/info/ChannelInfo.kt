@@ -1,24 +1,28 @@
 package moe.astar.telegramw.ui.info
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Login
-import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material.*
 import androidx.wear.compose.material.dialog.Alert
 import moe.astar.telegramw.NotificationGroup
@@ -59,7 +63,7 @@ fun ChannelInfoScaffold(
         Alert(
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.Logout,
+                    imageVector = Icons.AutoMirrored.Outlined.Logout,
                     contentDescription = "left",
                     modifier = Modifier
                         .size(24.dp)
@@ -97,7 +101,7 @@ fun ChannelInfoScaffold(
         Alert(
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.Login,
+                    imageVector = Icons.AutoMirrored.Outlined.Login,
                     contentDescription = "join",
                     modifier = Modifier
                         .size(24.dp)
@@ -178,7 +182,7 @@ fun ChannelInfoScaffold(
                             is TdApi.ChatMemberStatusLeft -> {
                                 MenuItem(
                                     title = "Join",
-                                    imageVector = Icons.Outlined.Login,
+                                    imageVector = Icons.AutoMirrored.Outlined.Login,
                                     onClick = {
                                         isJoinGroup = true
                                     }
@@ -208,30 +212,21 @@ fun ChannelInfoScaffold(
                             items(arr) { item ->
                                 val url = "t.me/$item"
                                 val annotatedString = buildAnnotatedString {
-                                    append(url)
-                                    addStyle(
-                                        style = SpanStyle(
-                                            color = Color(0xFF64B5F6),
-                                            textDecoration = TextDecoration.Underline
-                                        ),
-                                        start = 0,
-                                        end = this.length
-                                    )
-
-                                    addStringAnnotation(
-                                        tag = "url",
-                                        annotation = "https://$url",
-                                        start = 0,
-                                        end = this.length
-                                    )
+                                    withLink(
+                                        LinkAnnotation.Url(
+                                            url = "https://$url",
+                                            styles = TextLinkStyles(
+                                                style = SpanStyle(
+                                                    color = Color(0xFF64B5F6),
+                                                    textDecoration = TextDecoration.Underline
+                                                )
+                                            )
+                                        )
+                                    ) {
+                                        append(url)
+                                    }
                                 }
-                                ClickableText(text = annotatedString, onClick = {
-                                    annotatedString.getStringAnnotations("url", it, it)
-                                        .firstOrNull()
-                                        ?.let { stringAnnotation ->
-                                            uriHandler.openUri(stringAnnotation.item)
-                                        }
-                                })
+                                Text(text = annotatedString)
                             }
                         }
                     }

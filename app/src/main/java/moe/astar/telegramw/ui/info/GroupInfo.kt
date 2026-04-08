@@ -3,6 +3,8 @@ package moe.astar.telegramw.ui.info
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,6 +13,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material.*
 import androidx.wear.compose.material.dialog.Alert
 import moe.astar.telegramw.NotificationGroup
@@ -45,7 +49,7 @@ fun GroupInfoScaffold(
         Alert(
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.Logout,
+                    imageVector = Icons.AutoMirrored.Outlined.Logout,
                     contentDescription = "left",
                     modifier = Modifier
                         .size(24.dp)
@@ -83,7 +87,7 @@ fun GroupInfoScaffold(
         Alert(
             icon = {
                 Icon(
-                    imageVector = Icons.Outlined.Login,
+                    imageVector = Icons.AutoMirrored.Outlined.Login,
                     contentDescription = "join",
                     modifier = Modifier
                         .size(24.dp)
@@ -163,7 +167,7 @@ fun GroupInfoScaffold(
                             is TdApi.ChatMemberStatusLeft -> {
                                 MenuItem(
                                     title = "Join",
-                                    imageVector = Icons.Outlined.Login,
+                                    imageVector = Icons.AutoMirrored.Outlined.Login,
                                     onClick = {
                                         isJoinGroup = true
                                     }

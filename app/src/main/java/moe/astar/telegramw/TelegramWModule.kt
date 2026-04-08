@@ -11,6 +11,7 @@ import dagger.hilt.components.SingletonComponent
 import moe.astar.telegramw.client.Authenticator
 import moe.astar.telegramw.client.ChatProvider
 import moe.astar.telegramw.client.TelegramClient
+import moe.astar.telegramw.client.VoiceRecorder
 import org.drinkless.tdlib.TdApi
 import java.util.*
 import javax.inject.Singleton
@@ -48,5 +49,9 @@ object TelegramWModule {
     @Singleton
     @Provides
     fun provideChatProvider(telegramClient: TelegramClient) = ChatProvider(telegramClient)
+
+    @Singleton
+    @Provides
+    fun provideVoiceRecorder(@ApplicationContext context: Context) = VoiceRecorder(context)
 
 }

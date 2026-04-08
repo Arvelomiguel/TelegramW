@@ -27,6 +27,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListState
+import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
@@ -125,18 +129,23 @@ fun ChatScaffold(
             ) {
                 item {
                     val scope = rememberCoroutineScope()
-                    MessageInput(navController = navController, chatId = chatId, sendMessage = {
-                        scope.launch {
-                            viewModel.sendMessageAsync(
-                                threadId = threadId ?: 0,
-                                content = TdApi.InputMessageText(
-                                    TdApi.FormattedText(
-                                        it, emptyArray()
-                                    ), false, false
-                                )
-                            ).await()
-                        }
-                    })
+                    MessageInput(
+                        navController = navController,
+                        chatId = chatId,
+                        threadId = threadId,
+                        sendMessage = {
+                            scope.launch {
+                                viewModel.sendMessageAsync(
+                                    chatId = chatId,
+                                    threadId = threadId ?: 0,
+                                    content = TdApi.InputMessageText(
+                                        TdApi.FormattedText(
+                                            it, emptyArray()
+                                        ), false, false
+                                    )
+                                ).await()
+                            }
+                        })
                 }
                 items(
                     messageIds.zip(messageIds.drop(1) + listOf(null)),
@@ -283,7 +292,7 @@ fun MessageItem(
 
 @Composable
 fun MessageInput(
-    navController: NavController, chatId: Long, sendMessage: (String) -> Unit = {}
+    navController: NavController, chatId: Long, threadId: Long?, sendMessage: (String) -> Unit = {}
 ) {
 
     val launcher =
@@ -322,7 +331,7 @@ fun MessageInput(
         }
 
         Button(
-            onClick = { navController.navigate(Screen.ChatMenu.buildRoute(chatId)) },
+            onClick = { navController.navigate(Screen.ChatMenu.buildRoute(chatId, threadId ?: 0L)) },
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = MaterialTheme.colors.primaryVariant,
                 contentColor = MaterialTheme.colors.onSurface

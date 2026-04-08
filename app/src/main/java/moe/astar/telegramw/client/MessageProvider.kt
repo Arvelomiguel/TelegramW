@@ -26,7 +26,8 @@ class MessageProvider @Inject constructor(
     private val _messageData = MutableStateFlow(persistentHashMapOf<Long, TdApi.Message>())
     val messageData: StateFlow<PersistentMap<Long, TdApi.Message>> get() = _messageData
 
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var updateJob: Job? = null
 
     fun initialize(chatId: Long, threadId: Long?) {
         this.chatId = chatId
@@ -34,78 +35,96 @@ class MessageProvider @Inject constructor(
 
         Log.d("MessageProvider", "threadId: " + this.threadId.toString())
 
-        client.updateFlow
-            .filterIsInstance<TdApi.UpdateNewMessage>()
-            .filter { it.message.chatId == chatId && (threadId == null || threadId == it.message.messageThreadId) }
-            .onEach {
-                if (!_messageData.value.contains(it.message.id)) {
-                    _messageData.value = _messageData.value.put(it.message.id, it.message)
-                    _messageIds.value = _messageIds.value.add(0, it.message.id)
-                }
-            }.launchIn(scope)
-
-        client.updateFlow
-            .filterIsInstance<TdApi.UpdateMessageSendSucceeded>()
-            .filter { it.message.chatId == chatId && (threadId == null || threadId == it.message.messageThreadId) }
-            .onEach {
-                if (_messageData.value.contains(it.oldMessageId)) {
-                    _messageIds.value = _messageIds.value.mutate { list ->
-                        if (_messageIds.value.contains(it.oldMessageId)) {
-                            list[_messageIds.value.indexOf(it.oldMessageId)] = it.message.id
-                        } else {
-                            _messageIds.value = _messageIds.value.add(0, it.message.id)
+        updateJob?.cancel()
+        updateJob = scope.launch {
+            launch {
+                client.updateFlow
+                    .filterIsInstance<TdApi.UpdateNewMessage>()
+                    .filter { it.message.chatId == chatId && (threadId == null || threadId == it.message.messageThreadId) }
+                    .collect { update ->
+                        _messageData.update { data ->
+                            if (!data.contains(update.message.id)) {
+                                _messageIds.update { it.add(0, update.message.id) }
+                            }
+                            data.put(update.message.id, update.message)
                         }
                     }
-                    _messageData.value = _messageData.value.remove(it.oldMessageId)
-                    _messageData.value = _messageData.value.put(it.message.id, it.message)
-                } else {
-                    if (!_messageData.value.contains(it.message.id)) {
-                        _messageData.value = _messageData.value.put(it.message.id, it.message)
-                        _messageIds.value = _messageIds.value.add(0, it.message.id)
-                    }
-                }
-            }.launchIn(scope)
+            }
 
-        client.updateFlow
-            .filterIsInstance<TdApi.UpdateDeleteMessages>()
-            .filter { it.chatId == chatId }
-            .filter { it.isPermanent }
-            .onEach {
-                var removeList = mutableListOf<Long>()
-                it.messageIds.forEach { id ->
-                    if (_messageData.value.contains(id)) {
-                        _messageData.value = _messageData.value.remove(id)
-                        removeList.add(id)
+            launch {
+                client.updateFlow
+                    .filterIsInstance<TdApi.UpdateMessageSendSucceeded>()
+                    .filter { it.message.chatId == chatId && (threadId == null || threadId == it.message.messageThreadId) }
+                    .collect { update ->
+                        _messageData.update { data ->
+                            if (data.contains(update.oldMessageId)) {
+                                _messageIds.update { ids ->
+                                    if (ids.contains(update.oldMessageId)) {
+                                        ids.set(ids.indexOf(update.oldMessageId), update.message.id)
+                                    } else {
+                                        ids.add(0, update.message.id)
+                                    }
+                                }
+                                data.remove(update.oldMessageId).put(update.message.id, update.message)
+                            } else {
+                                if (!data.contains(update.message.id)) {
+                                    _messageIds.update { it.add(0, update.message.id) }
+                                    data.put(update.message.id, update.message)
+                                } else data
+                            }
+                        }
                     }
-                }
-                _messageIds.value = _messageIds.value.removeAll(removeList.toList())
-            }.launchIn(scope)
+            }
 
-        client.updateFlow
-            .filterIsInstance<TdApi.UpdateMessageContent>()
-            .filter { it.chatId == chatId }
-            .onEach {
-                _messageData.value[it.messageId]?.also { msg ->
-                    if (_messageData.value.contains(it.messageId)) {
-                        msg.content = it.newContent
-                        _messageData.value = _messageData.value.remove(it.messageId)
-                        _messageData.value = _messageData.value.put(it.messageId, msg)
+            launch {
+                client.updateFlow
+                    .filterIsInstance<TdApi.UpdateDeleteMessages>()
+                    .filter { it.chatId == chatId }
+                    .filter { it.isPermanent }
+                    .collect { update ->
+                        _messageData.update { data ->
+                            var newData = data
+                            val removeList = mutableListOf<Long>()
+                            update.messageIds.forEach { id ->
+                                if (newData.contains(id)) {
+                                    newData = newData.remove(id)
+                                    removeList.add(id)
+                                }
+                            }
+                            _messageIds.update { it.removeAll(removeList) }
+                            newData
+                        }
                     }
-                }
-            }.launchIn(scope)
+            }
 
-        client.updateFlow
-            .filterIsInstance<TdApi.UpdateMessageInteractionInfo>()
-            .filter { it.chatId == chatId }
-            .onEach {
-                _messageData.value[it.messageId]?.also { msg ->
-                    if (_messageData.value.contains(it.messageId)) {
-                        msg.interactionInfo = it.interactionInfo
-                        _messageData.value = _messageData.value.remove(it.messageId)
-                        _messageData.value = _messageData.value.put(it.messageId, msg)
+            launch {
+                client.updateFlow
+                    .filterIsInstance<TdApi.UpdateMessageContent>()
+                    .filter { it.chatId == chatId }
+                    .collect { update ->
+                        _messageData.update { data ->
+                            data[update.messageId]?.let { msg ->
+                                msg.content = update.newContent
+                                data.remove(update.messageId).put(update.messageId, msg)
+                            } ?: data
+                        }
                     }
-                }
-            }.launchIn(scope)
+            }
+
+            launch {
+                client.updateFlow
+                    .filterIsInstance<TdApi.UpdateMessageInteractionInfo>()
+                    .filter { it.chatId == chatId }
+                    .collect { update ->
+                        _messageData.update { data ->
+                            data[update.messageId]?.let { msg ->
+                                msg.interactionInfo = update.interactionInfo
+                                data.remove(update.messageId).put(update.messageId, msg)
+                            } ?: data
+                        }
+                    }
+            }
+        }
     }
 
     fun pullMessages(limit: Int = 10) {
@@ -116,10 +135,8 @@ class MessageProvider @Inject constructor(
             val messageSource = getMessages(msgId, limit)
             scope.launch {
                 messageSource.collect { messages ->
-                    _messageData.value =
-                        _messageData.value.putAll(messages.associateBy { message -> message.id })
-                    _messageIds.value =
-                        _messageIds.value.addAll(messages.map { message -> message.id })
+                    _messageData.update { it.putAll(messages.associateBy { m -> m.id }) }
+                    _messageIds.update { it.addAll(messages.map { m -> m.id }) }
 
                     _messageIds.value.lastOrNull()?.also { id ->
                         if (oldestMessageId.get() != id) {
@@ -171,8 +188,18 @@ class MessageProvider @Inject constructor(
     private fun sendMessageAsync(sendMessage: TdApi.SendMessage): Deferred<TdApi.Message> {
         val result = CompletableDeferred<TdApi.Message>()
         scope.launch {
-            client.sendRequest(sendMessage).filterIsInstance<TdApi.Message>().collect {
-                result.complete(it)
+            client.sendRequest(sendMessage).collect {
+                when (it) {
+                    is TdApi.Message -> result.complete(it)
+                    is TdApi.Error -> {
+                        Log.e(TAG, "Error sending message: ${it.code} - ${it.message}")
+                        result.completeExceptionally(Exception(it.message))
+                    }
+                    else -> {
+                        Log.e(TAG, "Unexpected response from TDLib: $it")
+                        result.completeExceptionally(Exception("Unexpected response: $it"))
+                    }
+                }
             }
         }
         return result

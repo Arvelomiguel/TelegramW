@@ -27,10 +27,13 @@ sealed class Screen(val route: String) {
             entry.arguments?.getString("threadId")?.toLong()
     }
 
-    object ChatMenu : Screen("chatMenu/{chatId}") {
-        fun buildRoute(chatId: Long): String = "chatMenu/${chatId}"
+    object ChatMenu : Screen("chatMenu/{chatId}/{threadId}") {
+        fun buildRoute(chatId: Long, threadId: Long): String = "chatMenu/${chatId}/${threadId}"
         fun getChatId(entry: NavBackStackEntry): Long? =
             entry.arguments?.getString("chatId")?.toLong()
+
+        fun getThreadId(entry: NavBackStackEntry): Long? =
+            entry.arguments?.getString("threadId")?.toLong()
     }
 
     object MessageMenu : Screen("messageMenu/{chatId}/{messageId}") {
@@ -136,6 +139,17 @@ sealed class Screen(val route: String) {
 
         fun getChatId(entry: NavBackStackEntry): Long? =
             entry.arguments?.getString("chatId")?.toLong()
+    }
+
+    object VoiceRecord : Screen("voiceRecord/{chatId}/{threadId}") {
+        fun buildRoute(chatId: Long, threadId: Long): String =
+            "voiceRecord/${chatId}/${threadId}"
+
+        fun getChatId(entry: NavBackStackEntry): Long? =
+            entry.arguments?.getString("chatId")?.toLong()
+
+        fun getThreadId(entry: NavBackStackEntry): Long? =
+            entry.arguments?.getString("threadId")?.toLong()
     }
     //object CreateChat : Screen("createChat")
 }

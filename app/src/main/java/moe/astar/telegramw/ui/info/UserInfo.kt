@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -14,13 +13,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.*
 import moe.astar.telegramw.NotificationGroup
 import moe.astar.telegramw.NotificationPreferneces
@@ -118,31 +116,24 @@ fun Name(user: TdApi.User) {
 fun Username(user: TdApi.User) {
     if (user.usernames != null) {
         val uriHandler = LocalUriHandler.current
-        val url = "t.me/${user.usernames!!.activeUsernames[0]}"
+        val username = user.usernames!!.activeUsernames[0]
+        val url = "t.me/$username"
         val annotatedString = buildAnnotatedString {
-            append("@${user.usernames!!.activeUsernames[0]}")
-            addStyle(
-                style = SpanStyle(
-                    color = Color(0xFF64B5F6),
-                    textDecoration = TextDecoration.Underline
-                ),
-                start = 0,
-                end = this.length,
-            )
-
-            addStringAnnotation(
-                tag = "url",
-                annotation = "https://$url",
-                start = 0,
-                end = this.length,
-            )
+            withLink(
+                LinkAnnotation.Url(
+                    url = "https://$url",
+                    styles = TextLinkStyles(
+                        style = SpanStyle(
+                            color = Color(0xFF64B5F6),
+                            textDecoration = TextDecoration.Underline
+                        )
+                    )
+                )
+            ) {
+                append("@$username")
+            }
         }
-        ClickableText(text = annotatedString, onClick = {
-            annotatedString.getStringAnnotations("url", it, it).firstOrNull()
-                ?.let { stringAnnotation ->
-                    uriHandler.openUri(stringAnnotation.item)
-                }
-        })
+        Text(text = annotatedString)
     }
 }
 

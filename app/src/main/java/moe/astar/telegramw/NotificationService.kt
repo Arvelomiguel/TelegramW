@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.IBinder
@@ -90,8 +91,8 @@ class NotificationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        registerReceiver(markAsReadReceiver, IntentFilter("MARK_READ"))
-        registerReceiver(replyReceiver, IntentFilter("REPLY"))
+        registerReceiver(markAsReadReceiver, IntentFilter("MARK_READ"), Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(replyReceiver, IntentFilter("REPLY"), Context.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onDestroy() {
@@ -134,7 +135,11 @@ class NotificationService : Service() {
                 .setContentIntent(pendingIntent)
                 .build()
 
-        startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+        }
         return START_STICKY
 
     }
